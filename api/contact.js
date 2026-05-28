@@ -6,7 +6,7 @@ const escapeHtml = (value = '') =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 
-export default async function handler(req: any, res: any) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -28,10 +28,10 @@ export default async function handler(req: any, res: any) {
   const safeProject = escapeHtml(project).replace(/\n/g, '<br/>');
   const safeScore = escapeHtml(String(score ?? 'Non fourni'));
   const safeCategories = Array.isArray(categoryScores)
-    ? categoryScores.map((cat: any) => `<li>${escapeHtml(cat.category)} : <strong>${escapeHtml(String(cat.obtained))}/${escapeHtml(String(cat.max))} pts — ${escapeHtml(String(cat.percent))}%</strong></li>`).join('')
+    ? categoryScores.map((cat) => `<li>${escapeHtml(cat.category)} : <strong>${escapeHtml(String(cat.obtained))}/${escapeHtml(String(cat.max))} pts — ${escapeHtml(String(cat.percent))}%</strong></li>`).join('')
     : '';
   const safeZeros = Array.isArray(zeroCriteria) && zeroCriteria.length
-    ? zeroCriteria.map((item: string) => `<li>${escapeHtml(item)}</li>`).join('')
+    ? zeroCriteria.map((item) => `<li>${escapeHtml(item)}</li>`).join('')
     : '<li>Aucun critère à 0 point transmis</li>';
 
   const html = `
@@ -82,4 +82,4 @@ export default async function handler(req: any, res: any) {
     console.error('Resend request error:', error);
     return res.status(500).json({ error: 'Failed to send email' });
   }
-}
+};
