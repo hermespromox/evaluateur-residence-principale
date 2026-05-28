@@ -1,32 +1,33 @@
-# Évaluateur Résidence Principale — V1
+# Scory — Évaluateur Résidence Principale
 
-Application frontend uniquement pour évaluer objectivement une résidence principale.
+Scory transforme une visite immobilière en décision objectivée : score sur 100, détail par catégorie, alertes à 0 point et demande de conseil.
 
-## V1 inclut
+## Produit
 
-- Formulaire par critères avec listes déroulantes
+- Landing SaaS complète : hero, valeur, process, pricing, témoignages, FAQ, CTA
+- Formulaire d’évaluation avec 28 critères
 - Score global normalisé sur 100
-- Détail par catégorie
 - Gestion “Non applicable” avec exclusion du dénominateur
-- Notes personnelles facultatives par critère
-- Liste des critères à 0 point
-- Réinitialisation
-- Export PDF simple via impression navigateur
+- Notes personnelles facultatives
+- Export PDF navigateur
+- Formulaire contact connecté à `/api/contact` via Resend
 
 ## Stack
 
 - React
 - Vite
 - TypeScript
-- CSS custom basé sur le design system warm/orange
+- Vercel Serverless Function
+- Resend
 
-## Lancer localement
+## Local
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Modifier le barème
+## Env production
 
-Tout le scoring est centralisé dans `src/App.tsx`, constante `criteria`.
+- `RESEND_API_KEY` requis pour l’envoi email
+- `CONTACT_TO_EMAIL` optionnel, défaut : `hermes.promox@gmail.com`

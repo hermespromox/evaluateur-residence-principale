@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { type FormEvent, useMemo, useState } from 'react';
 
 type Option = { label: string; points: number; na?: boolean };
 type Criterion = { id: string; category: string; name: string; max: number; options: Option[] };
@@ -37,6 +37,12 @@ const criteria: Criterion[] = [
 const categories = Array.from(new Set(criteria.map((c) => c.category)));
 const maxTheory = criteria.reduce((sum, c) => sum + c.max, 0);
 
+const defaultValues = Object.fromEntries(criteria.map((c) => [c.id, ''])) as Record<string, string>;
+const defaultNotes = Object.fromEntries(criteria.map((c) => [c.id, ''])) as Record<string, string>;
+
+type ContactState = { name: string; email: string; phone: string; project: string; budget: string };
+const defaultContact: ContactState = { name: '', email: '', phone: '', project: '', budget: '' };
+
 function interpretation(score: number) {
   if (score >= 85) return 'Très bon choix objectif';
   if (score >= 70) return 'Bon choix';
@@ -44,12 +50,23 @@ function interpretation(score: number) {
   return 'Risque élevé ou mauvaise adéquation';
 }
 
-const defaultValues = Object.fromEntries(criteria.map((c) => [c.id, ''])) as Record<string, string>;
-const defaultNotes = Object.fromEntries(criteria.map((c) => [c.id, ''])) as Record<string, string>;
+const testimonials = [
+  { quote: 'On hésitait sur une maison coup de cœur. Scory a mis noir sur blanc les compromis : trajet, charges et travaux. On a évité une décision émotionnelle.', name: 'Claire & Mehdi', role: 'Acheteurs à Lyon' },
+  { quote: 'Le score par catégorie rend la discussion beaucoup plus simple avec mon courtier et ma famille. Tout le monde voit où le bien est solide ou fragile.', name: 'Nadia B.', role: 'Primo-accédante' },
+  { quote: 'En agence, je l’utilise comme pré-diagnostic avant visite. Les clients arrivent avec des critères clairs et moins de regrets après coup.', name: 'Thomas R.', role: 'Conseiller immobilier' },
+];
+
+const features = [
+  { title: 'Score objectif sur 100', text: 'Vie quotidienne, budget, confort, travaux et risques : chaque réponse pèse dans une note claire.' },
+  { title: 'Moins de regrets après signature', text: 'Mieux vaut perdre 5 minutes dans un formulaire que vivre avec 20 regrets pendant des années.' },
+  { title: 'Conseil humain en option', text: 'Besoin d’un avis ? Envoyez votre situation et recevez une lecture personnalisée.' },
+];
 
 export function App() {
   const [values, setValues] = useState(defaultValues);
   const [notes, setNotes] = useState(defaultNotes);
+  const [contact, setContact] = useState(defaultContact);
+  const [contactStatus, setContactStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
   const result = useMemo(() => {
     let obtained = 0;
@@ -77,37 +94,89 @@ export function App() {
 
   const reset = () => { setValues(defaultValues); setNotes(defaultNotes); };
 
+  const submitContact = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setContactStatus('sending');
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...contact, score: result.finalScore, categoryScores: result.categoryScores, zeroCriteria: result.zeroCriteria }),
+      });
+      if (!response.ok) throw new Error('send failed');
+      setContactStatus('sent');
+      setContact(defaultContact);
+    } catch {
+      setContactStatus('error');
+    }
+  };
+
   return (
     <main>
-      <section className="hero">
-        <div className="eyebrow">Évaluateur V1 • Frontend uniquement</div>
-        <h1>Score objectif d’une résidence principale, lisible en moins de 10 minutes.</h1>
-        <p>Un formulaire clair, un barème modifiable côté frontend et un résultat normalisé sur 100 avec prise en compte des critères non applicables.</p>
+      <nav className="topbar" aria-label="Navigation principale">
+        <a className="brand" href="#top" aria-label="Scory accueil">
+          <span className="material-symbols-outlined" aria-hidden="true">family_home</span>
+          <strong>Scory</strong>
+        </a>
+        <div className="navlinks">
+          <a href="#solution">Solution</a>
+          <a href="#formulaire">Évaluation</a>
+          <a href="#temoignages">Témoignages</a>
+          <a href="#contact">Conseils</a>
+        </div>
+      </nav>
+
+      <section className="hero" id="top">
+        <div className="eyebrow">Scory • SaaS d’aide à la décision immobilière</div>
+        <h1>Avant d’acheter, voyez le score réel de votre futur chez-vous.</h1>
+        <p className="hero-copy">Perdez 5 minutes dans Scory plutôt que 20 regrets après la signature. Transformez une visite coup de cœur en décision rationnelle : budget, trajet, confort, travaux et risques sont notés sur 100.</p>
         <div className="hero-actions">
-          <a className="button primary" href="#formulaire">Commencer l’évaluation</a>
-          <button className="button secondary" type="button" onClick={() => window.print()}>Exporter PDF</button>
+          <a className="button primary" href="#formulaire">Calculer mon score</a>
+          <a className="button secondary" href="#contact">Demander un avis</a>
+        </div>
+        <div className="hero-proof">
+          <span>Sans compte</span><span>Score instantané</span><span>Conseil optionnel</span><span>Export PDF</span>
         </div>
       </section>
 
-      <section className="trustbar" aria-label="Résumé V1">
-        <div><strong>{criteria.length}</strong><span>critères objectifs</span></div>
-        <div><strong>{maxTheory}</strong><span>points théoriques</span></div>
-        <div><strong>0</strong><span>backend / compte / BDD</span></div>
-        <div><strong>100%</strong><span>scoring frontend</span></div>
+      <section className="trustbar" aria-label="Preuves produit">
+        <div><strong>{criteria.length}</strong><span>critères immobiliers</span></div>
+        <div><strong>{maxTheory}</strong><span>points de contrôle</span></div>
+        <div><strong>5 min</strong><span>pour éviter les regrets</span></div>
+        <div><strong>0</strong><span>compte obligatoire</span></div>
+      </section>
+
+      <section className="marketing" id="solution">
+        <div className="section-kicker">La valeur Scory</div>
+        <h2>Un vrai produit SaaS pour objectiver l’achat le plus important de votre vie.</h2>
+        <div className="feature-grid">
+          {features.map((feature) => <div key={feature.title}><h3>{feature.title}</h3><p>{feature.text}</p></div>)}
+        </div>
+      </section>
+
+      <section className="how-it-works">
+        <div><span>1</span><h3>Répondez aux critères</h3><p>Listes déroulantes simples, notes personnelles et critères non applicables.</p></div>
+        <div><span>2</span><h3>Lisez le score</h3><p>Score final, catégories, alertes à 0 point et interprétation immédiate.</p></div>
+        <div><span>3</span><h3>Demandez conseil</h3><p>Envoyez votre résultat pour recevoir une aide personnalisée avant de vous engager.</p></div>
       </section>
 
       <section className="layout" id="formulaire">
         <aside className="score-card">
-          <span className="label">Score final</span>
+          <span className="label">Score Scory</span>
           <div className="score">{result.finalScore}<small>/100</small></div>
           <p className="interpretation">{interpretation(result.finalScore)}</p>
           <div className="meter"><span style={{ width: `${result.finalScore}%` }} /></div>
-          <p className="small">Points retenus : {result.obtained} / {result.applicableMax || 0}. Les critères “Non applicable” sont exclus puis le score est normalisé.</p>
+          <p className="small">Points retenus : {result.obtained} / {result.applicableMax || 0}. Seul “Non applicable” retire les points maximum du calcul.</p>
           <button className="button primary wide" type="button" onClick={reset}>Réinitialiser</button>
-          <button className="button secondary wide" type="button" onClick={() => window.print()}>Exporter PDF simple</button>
+          <button className="button secondary wide" type="button" onClick={() => window.print()}>Exporter PDF</button>
         </aside>
 
         <div className="panel">
+          <div className="panel-intro">
+            <div className="section-kicker">Démo produit live</div>
+            <h2>Évaluez votre bien maintenant</h2>
+            <p>Tout est calculé côté interface. Les champs laissés vides comptent comme 0 jusqu’à sélection ; les critères explicitement non applicables sont exclus.</p>
+          </div>
           {categories.map((category) => (
             <section className="category" key={category}>
               <div className="category-head">
@@ -146,27 +215,70 @@ export function App() {
             {result.categoryScores.map((cat) => <div key={cat.category}><span>{cat.category}</span><strong>{cat.obtained}/{cat.max} pts — {cat.percent}%</strong></div>)}
           </div>
         </div>
-        <div className="result-block">
-          <h2>Critères à 0 point</h2>
+        <div className="result-block alert-block">
+          <h2>À regarder avant offre</h2>
           {result.zeroCriteria.length ? <ul>{result.zeroCriteria.map((name) => <li key={name}>{name}</li>)}</ul> : <p>Aucun critère applicable sélectionné à 0 point.</p>}
         </div>
       </section>
 
-      <section className="marketing">
-        <h2>Pourquoi cette V1 est volontairement simple</h2>
-        <div className="feature-grid">
-          <div><h3>Calcul fiable</h3><p>Les points maximum non applicables sont retirés du dénominateur avant normalisation sur 100.</p></div>
-          <div><h3>Barème modifiable</h3><p>Tous les critères sont centralisés dans un tableau JavaScript unique.</p></div>
-          <div><h3>Lecture immédiate</h3><p>Score global, interprétation, catégories et alertes à 0 point restent visibles.</p></div>
+      <section className="pricing">
+        <div className="section-kicker">Offre</div>
+        <h2>Commencez gratuitement, demandez un regard expert si l’enjeu devient sérieux.</h2>
+        <div className="pricing-grid">
+          <article><h3>Scory Free</h3><strong>0 €</strong><p>Score instantané, détail par catégorie, notes personnelles, export PDF.</p><a className="button secondary" href="#formulaire">Utiliser maintenant</a></article>
+          <article className="highlight"><h3>Scory Conseil</h3><strong>Sur demande</strong><p>Lecture de votre score, points faibles, questions à poser avant offre et arbitrage des compromis.</p><a className="button primary" href="#contact">Demander conseil</a></article>
         </div>
       </section>
 
-      <section className="faq">
-        <h2>FAQ V1</h2>
-        <details open><summary>Les données sont-elles sauvegardées ?</summary><p>Non. Aucun compte, backend, API ni base de données dans cette V1.</p></details>
-        <details><summary>Le PDF est-il généré côté serveur ?</summary><p>Non. Le bouton utilise l’impression navigateur pour sauvegarder simplement en PDF.</p></details>
-        <details><summary>Comment ajouter un critère ?</summary><p>Il suffit d’ajouter une entrée dans le tableau <code>criteria</code> avec catégorie, maximum et options.</p></details>
+      <section className="testimonials" id="temoignages">
+        <div className="section-kicker">Témoignages</div>
+        <h2>Ils ont préféré vérifier avant de regretter.</h2>
+        <div className="testimonial-grid">
+          {testimonials.map((item) => <figure key={item.name}><blockquote>“{item.quote}”</blockquote><figcaption><strong>{item.name}</strong><span>{item.role}</span></figcaption></figure>)}
+        </div>
       </section>
+
+      <section className="contact-section" id="contact">
+        <div>
+          <div className="section-kicker">Conseils personnalisés</div>
+          <h2>Vous avez un bien en tête ? Envoyez le contexte, Scory vous aide à décider.</h2>
+          <p>Le message part via Resend vers l’équipe. Ajoutez votre score, votre doute principal, votre délai d’achat et les points qui vous inquiètent.</p>
+        </div>
+        <form className="contact-form" onSubmit={submitContact}>
+          <input required name="name" placeholder="Votre nom" value={contact.name} onChange={(e) => setContact((c) => ({ ...c, name: e.target.value }))} />
+          <input required type="email" name="email" placeholder="Email" value={contact.email} onChange={(e) => setContact((c) => ({ ...c, email: e.target.value }))} />
+          <input name="phone" placeholder="Téléphone optionnel" value={contact.phone} onChange={(e) => setContact((c) => ({ ...c, phone: e.target.value }))} />
+          <select value={contact.budget} onChange={(e) => setContact((c) => ({ ...c, budget: e.target.value }))}>
+            <option value="">Budget / stade du projet</option>
+            <option>Visite prévue</option><option>Offre à faire</option><option>Compromis en discussion</option><option>Besoin d’un second avis</option>
+          </select>
+          <textarea required rows={5} placeholder="Décrivez le bien, vos doutes et le type de conseil souhaité" value={contact.project} onChange={(e) => setContact((c) => ({ ...c, project: e.target.value }))} />
+          <button className="button primary wide" disabled={contactStatus === 'sending'}>{contactStatus === 'sending' ? 'Envoi…' : 'Envoyer ma demande'}</button>
+          {contactStatus === 'sent' && <p className="form-success">Demande envoyée. Nous revenons vers vous rapidement.</p>}
+          {contactStatus === 'error' && <p className="form-error">Envoi impossible pour le moment. Réessayez ou écrivez à hermes.promox@gmail.com.</p>}
+        </form>
+      </section>
+
+      <section className="faq">
+        <h2>FAQ</h2>
+        <details open><summary>Scory remplace-t-il un expert immobilier ?</summary><p>Non. Scory structure la décision et rend les compromis visibles. Pour un avis approfondi, utilisez le formulaire conseil.</p></details>
+        <details><summary>Mes réponses sont-elles sauvegardées ?</summary><p>Non pour le score : le calcul reste dans votre navigateur. Le formulaire contact envoie uniquement les informations que vous choisissez de transmettre.</p></details>
+        <details><summary>Pourquoi les critères vides comptent-ils comme 0 ?</summary><p>Parce qu’un point non vérifié reste un risque. Sélectionnez “Non applicable” uniquement quand le critère ne concerne vraiment pas le bien.</p></details>
+        <details><summary>Puis-je exporter le résultat ?</summary><p>Oui, le bouton PDF utilise l’impression du navigateur.</p></details>
+      </section>
+
+      <section className="cta-banner">
+        <span className="material-symbols-outlined" aria-hidden="true">family_home</span>
+        <h2>Ne laissez pas un coup de cœur décider seul.</h2>
+        <p>5 minutes de scoring maintenant peuvent éviter des années de compromis subis.</p>
+        <a className="button primary" href="#formulaire">Lancer Scory</a>
+      </section>
+
+      <footer>
+        <a className="brand" href="#top"><span className="material-symbols-outlined" aria-hidden="true">family_home</span><strong>Scory</strong></a>
+        <span>Score immobilier objectif pour résidence principale.</span>
+        <span>© 2026 Scory</span>
+      </footer>
     </main>
   );
 }
