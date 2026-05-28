@@ -1,5 +1,3 @@
-import { Resend } from 'resend';
-
 const escapeHtml = (value = '') =>
   String(value)
     .replace(/&/g, '&amp;')
@@ -23,7 +21,6 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: 'RESEND_API_KEY is not configured.' });
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const safeName = escapeHtml(name);
   const safeEmail = escapeHtml(email);
   const safePhone = escapeHtml(phone);
@@ -37,37 +34,52 @@ export default async function handler(req: any, res: any) {
     ? zeroCriteria.map((item: string) => `<li>${escapeHtml(item)}</li>`).join('')
     : '<li>Aucun critère à 0 point transmis</li>';
 
+  const html = `
+    <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif; line-height: 1.6; max-width: 720px; color: #140400;">
+      <h1 style="margin: 0 0 8px;">Nouvelle demande conseil Scory</h1>
+      <p style="color:#521000;">Un utilisateur demande de l’aide avant achat immobilier.</p>
+      <div style="background:#FEF7ED; border:1px solid #EBD5C1; border-radius:16px; padding:20px; margin:20px 0;">
+        <p><strong>Nom :</strong> ${safeName}</p>
+        <p><strong>Email :</strong> ${safeEmail}</p>
+        ${safePhone ? `<p><strong>Téléphone :</strong> ${safePhone}</p>` : ''}
+        ${safeBudget ? `<p><strong>Stade :</strong> ${safeBudget}</p>` : ''}
+        <p><strong>Score Scory :</strong> ${safeScore}/100</p>
+      </div>
+      <h2>Message</h2>
+      <div style="background:#FFFDFB; border:1px solid #EBD5C1; border-radius:12px; padding:18px;">${safeProject}</div>
+      <h2>Détail par catégorie</h2>
+      <ul>${safeCategories}</ul>
+      <h2>Points à surveiller</h2>
+      <ul>${safeZeros}</ul>
+      <p style="margin-top:32px; color:#7a3a23; font-size:13px;">Reçu via Scory.</p>
+    </div>
+  `;
+
   try {
-    await resend.emails.send({
-      from: 'Scory <onboarding@resend.dev>',
-      to: [process.env.CONTACT_TO_EMAIL || 'hermes.promox@gmail.com'],
-      replyTo: email,
-      subject: `Nouvelle demande Scory — ${name} — score ${safeScore}/100`,
-      html: `
-        <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif; line-height: 1.6; max-width: 720px; color: #140400;">
-          <h1 style="margin: 0 0 8px;">Nouvelle demande conseil Scory</h1>
-          <p style="color:#521000;">Un utilisateur demande de l’aide avant achat immobilier.</p>
-          <div style="background:#FEF7ED; border:1px solid #EBD5C1; border-radius:16px; padding:20px; margin:20px 0;">
-            <p><strong>Nom :</strong> ${safeName}</p>
-            <p><strong>Email :</strong> ${safeEmail}</p>
-            ${safePhone ? `<p><strong>Téléphone :</strong> ${safePhone}</p>` : ''}
-            ${safeBudget ? `<p><strong>Stade :</strong> ${safeBudget}</p>` : ''}
-            <p><strong>Score Scory :</strong> ${safeScore}/100</p>
-          </div>
-          <h2>Message</h2>
-          <div style="background:#FFFDFB; border:1px solid #EBD5C1; border-radius:12px; padding:18px;">${safeProject}</div>
-          <h2>Détail par catégorie</h2>
-          <ul>${safeCategories}</ul>
-          <h2>Points à surveiller</h2>
-          <ul>${safeZeros}</ul>
-          <p style="margin-top:32px; color:#7a3a23; font-size:13px;">Reçu via Scory.</p>
-        </div>
-      `,
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Scory <onboarding@resend.dev>',
+        to: [process.env.CONTACT_TO_EMAIL || 'hermes.promox@gmail.com'],
+        reply_to: email,
+        subject: `Nouvelle demande Scory — ${name} — score ${safeScore}/100`,
+        html,
+      }),
     });
+
+    if (!response.ok) {
+      const detail = await response.text();
+      console.error('Resend error:', detail);
+      return res.status(500).json({ error: 'Failed to send email' });
+    }
 
     return res.status(200).json({ success: true });
   } catch (error) {
-    console.error('Resend error:', error);
+    console.error('Resend request error:', error);
     return res.status(500).json({ error: 'Failed to send email' });
   }
 }
