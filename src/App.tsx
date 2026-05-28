@@ -60,12 +60,13 @@ export function App() {
       let catMax = 0;
       criteria.filter((c) => c.category === category).forEach((criterion) => {
         const option = values[criterion.id] === '' ? undefined : criterion.options[Number(values[criterion.id])];
-        if (!option || option.na) return;
+        if (option?.na) return;
+        const points = option?.points ?? 0;
         applicableMax += criterion.max;
-        obtained += option.points;
+        obtained += points;
         catMax += criterion.max;
-        catObtained += option.points;
-        if (option.points === 0) zeroCriteria.push(criterion.name);
+        catObtained += points;
+        if (option && points === 0) zeroCriteria.push(criterion.name);
       });
       return { category, obtained: catObtained, max: catMax, percent: catMax ? Math.round((catObtained / catMax) * 100) : 0 };
     });
